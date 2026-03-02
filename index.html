@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>真經還是廢紙？Outputs vs Outcomes</title>
+  <style>
+    :root { --bg:#0b0f19; --card:#121a2a; --muted:#8aa0c6; --text:#eaf1ff; --ok:#37d67a; --bad:#ff4d4f; --warn:#ffcc00; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: radial-gradient(1200px 800px at 20% 0%, #182545 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .app { width: min(980px, 100%); }
+    .topbar {
+      display: grid; grid-template-columns: 1fr auto; gap: 12px;
+      align-items: center; margin-bottom: 14px;
+    }
+    .title h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
+    .title p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+    .hud {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .pill {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 10px 12px;
+      border-radius: 14px;
+      min-width: 110px;
+    }
+    .pill .k { color: var(--muted); font-size: 12px; }
+    .pill .v { font-size: 18px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+    }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .hud { justify-content: flex-start; }
+    }
+
+    .stage {
+      position: relative;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding: 14px;
+      overflow: hidden;
+      min-height: 520px;
+    }
+    .labels {
+      display:flex; justify-content: space-between; align-items: center;
+      padding: 6px 6px 12px;
+      color: var(--muted); font-size: 13px;
+      user-select: none;
+    }
+    .labels b { color: var(--text); }
+    .hint {
+      position: absolute; inset: auto 14px 14px 14px;
+      display: flex; justify-content: space-between; gap: 10px;
+      color: var(--muted); font-size: 13px;
+      user-select: none;
+    }
+    .hint .key { color: var(--text); }
+    .deck {
+      position: relative;
+      height: 420px;
+      display: grid;
+      place-items: center;
+      margin-top: 4px;
+    }
+    .card {
+      width: min(520px, 92%);
+      height: 360px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 18px 50px rgba(0,0,0,.35);
+      padding: 18px 18px 16px;
+      position: absolute;
+      touch-action: none;
+      transform: translate(0,0) rotate(0deg);
+      transition: transform .18s ease, opacity .18s ease;
+    }
+    .card .tagrow { display:flex; gap: 8px; align-items: center; }
+    .tag {
+      font-size: 12px; padding: 6px 10px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.15);
+      color: var(--muted);
+    }
+    .tag.outputs { border-color: rgba(255,77,79,.35); color: rgba(255,200,200,.92); }
+    .tag.outcomes { border-color: rgba(55,214,122,.35); color: rgba(200,255,230,.92); }
+    .tag.neutral { border-color: rgba(255,204,0,.35); color: rgba(255,235,180,.95); }
+    .card h2 { margin: 12px 0 8px; font-size: 18px; line-height: 1.35; }
+    .card .desc { color: rgba(234,241,255,.92); font-size: 16px; line-height: 1.5; white-space: pre-wrap; }
+    .card .meta {
+      margin-top: 12px; color: var(--muted);
+      font-size: 13px; line-height: 1.45;
+    }
+    .overlay {
+      position: absolute;
+      top: 18px; left: 18px;
+      padding: 8px 12px;
+      border-radius: 14px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      opacity: 0;
+      transform: scale(0.98);
+      transition: opacity .12s ease, transform .12s ease;
+      user-select: none;
+      pointer-events: none;
+    }
+    .overlay.left { background: rgba(255,77,79,.14); border: 1px solid rgba(255,77,79,.35); color: #ffd6d6; }
+    .overlay.right { background: rgba(55,214,122,.14); border: 1px solid rgba(55,214,122,.35); color: #caffdf; left: auto; right: 18px; }
+    .overlay.show { opacity: 1; transform: scale(1); }
+
+    .side {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding: 14px;
+      min-height: 520px;
+      display:flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .panel {
+      background: rgba(0,0,0,.14);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 12px;
+    }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; color: rgba(234,241,255,.95); }
+    .panel p, .panel li { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .panel ul { margin: 8px 0 0; padding-left: 18px; }
+    .btnrow { display:flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 650;
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+    }
+    button:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.20); }
+    button:active { transform: translateY(1px); }
+    button.primary { border-color: rgba(55,214,122,.35); background: rgba(55,214,122,.10); }
+    button.danger { border-color: rgba(255,77,79,.35); background: rgba(255,77,79,.10); }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.55);
+      border: 1px solid rgba(255,255,255,.14);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+      max-width: min(760px, 92%);
+      line-height: 1.45;
+    }
+    .toast.show { opacity: 1; }
+    .end {
+      position: absolute; inset: 0;
+      display:none;
+      background: rgba(10,14,24,.78);
+      backdrop-filter: blur(6px);
+      border-radius: 22px;
+      padding: 18px;
+    }
+    .end.show { display:block; }
+    .end .box {
+      max-width: 560px;
+      margin: 36px auto 0;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+    }
+    .end h2 { margin: 0 0 8px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .stat {
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 10px 12px;
+    }
+    .stat .k { color: var(--muted); font-size: 12px; }
+    .stat .v { margin-top: 2px; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .small { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.45; }
+    .kbd {
+      display:inline-block;
+      padding: 2px 7px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.06);
+      font-variant-numeric: tabular-nums;
+      color: rgba(234,241,255,.92);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" role="application" aria-label="真經還是廢紙？Outputs vs Outcomes">
+    <div class="topbar">
+      <div class="title">
+        <h1>真經還是廢紙？<span style="color:#9fb6ff;">Outputs vs. Outcomes</span></h1>
+        <p>
+          玩法：<b>向左滑＝Outputs（做完/交付規格）</b>；<b>向右滑＝Outcomes（價值/效益/商業成果）</b>。<br />
+          滑錯會扣秒，連續答對有 Combo。你能撐多久？
+        </p>
+      </div>
+
+      <div class="hud" aria-label="遊戲狀態">
+        <div class="pill"><div class="k">剩餘時間</div><div class="v" id="timeLeft">45.0</div></div>
+        <div class="pill"><div class="k">分數</div><div class="v" id="score">0</div></div>
+        <div class="pill"><div class="k">Combo</div><div class="v" id="combo">0</div></div>
+        <div class="pill"><div class="k">最佳紀錄</div><div class="v" id="best">0</div></div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="stage" aria-label="滑卡區">
+        <div class="labels">
+          <div>⬅️ <b>Outputs</b>（做完/交付規格）</div>
+          <div><b>Outcomes</b>（價值/效益） ➡️</div>
+        </div>
+
+        <div class="deck" id="deck" aria-live="polite">
+          <!-- cards injected -->
+        </div>
+
+        <div class="hint">
+          <div>鍵盤：<span class="kbd">←</span> Outputs　<span class="kbd">→</span> Outcomes</div>
+          <div>重來：<span class="kbd">R</span>　暫停：<span class="kbd">Space</span></div>
+        </div>
+
+        <div class="end" id="endScreen" aria-label="結算畫面">
+          <div class="box">
+            <h2>⏱️ 時間到！</h2>
+            <div class="grid2">
+              <div class="stat"><div class="k">本局分數</div><div class="v" id="endScore">0</div></div>
+              <div class="stat"><div class="k">最佳紀錄</div><div class="v" id="endBest">0</div></div>
+              <div class="stat"><div class="k">答對</div><div class="v" id="endCorrect">0</div></div>
+              <div class="stat"><div class="k">答錯</div><div class="v" id="endWrong">0</div></div>
+            </div>
+            <p class="small">
+              提醒：<b>Outputs 是「交付了什麼」</b>；<b>Outcomes 是「帶來了什麼改變/價值」</b>。<br/>
+              用你的專案語言：不要只說「做了」，要能說「因此改善了/提升了/降低了/增加了…」。
+            </p>
+            <div class="btnrow" style="margin-top:12px;">
+              <button class="primary" id="btnRestart">再來一局</button>
+              <button id="btnReview">看卡片解析</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="教學與設定">
+        <div class="panel">
+          <h3>本週概念速記</h3>
+          <p>
+            這週重點是「價值交付」：<b>做完（Outputs）</b>不等於<b>做好（Outcomes / Business Value）</b>。
+            （你投影片也用「取得真經的意義」把這個差異講得很清楚。）:contentReference[oaicite:1]{index=1}
+          </p>
+          <ul>
+            <li><b>Outputs</b>：交付物/規格/數量/如期如質如預算。</li>
+            <li><b>Outcomes</b>：效益/改變/價值（轉換率、滿意度、成本下降、留存提升…）。</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>遊戲設定</h3>
+          <div class="btnrow">
+            <button id="btnStart" class="primary">開始 / 重新開始</button>
+            <button id="btnPause">暫停</button>
+            <button id="btnShuffle">洗牌</button>
+          </div>
+          <p class="small" id="settingsInfo"></p>
+        </div>
+
+        <div class="panel">
+          <h3>老師模式：課堂延伸（30 秒小結）</h3>
+          <p>
+            讓學生用一句話把 Outputs 改寫成 Outcomes：<br/>
+            「我做了 X（Outputs），<b>所以</b> Y 指標改變了 Z（Outcomes）。」
+          </p>
+        </div>
+
+        <div class="panel">
+          <h3>卡片解析（滑錯會顯示）</h3>
+          <p id="explain" style="white-space:pre-wrap;">—</p>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script>
+    /***********************
+     * 1) 牌組：請在這裡擴充
+     ***********************/
+    const CARDS = [
+      // 你提供的例子
+      { text: "建立了一個有 50 個頁面的 WordPress 網站", answer: "outputs",
+        why: "這是交付物與規格（做了什麼、做了多少）。沒有描述帶來的效益或指標改變。" },
+      { text: "透過網站改版，讓線上課程的轉換率提升了 15%", answer: "outcomes",
+        why: "描述了可衡量的成效（轉換率提升 15%），屬於價值成果/效益。" },
+      { text: "如期、如質、如預算交付了 10 支短影音", answer: "outputs",
+        why: "聚焦交付數量與限制條件（時間/品質/預算），仍是產出。" },
+      { text: "為組織交付了實質的商業價值（Business Value）", answer: "outcomes",
+        why: "直接指向價值與利益實現（benefits realization），屬 Outcomes。" },
+
+      // 下面是我補的教學卡（可自由增刪）
+      { text: "完成募款頁面 A/B 測試版本各 1 版並上線", answer: "outputs",
+        why: "完成與上線是交付狀態；尚未說明募款轉換或捐款金額的變化。" },
+      { text: "讓募款頁面的平均捐款金額提高 80 元", answer: "outcomes",
+        why: "有明確指標（平均捐款金額）與提升幅度，是成效。" },
+      { text: "整理出一份 30 頁的競品分析報告", answer: "outputs",
+        why: "報告頁數是交付物的規格；還未說明報告如何帶來決策改善。" },
+      { text: "因競品洞察調整定價，使毛利率提升 3%", answer: "outcomes",
+        why: "描述策略改變造成的商業指標提升（毛利率）。" },
+      { text: "完成 2 場教師工作坊並發放講義", answer: "outputs",
+        why: "活動場次與發放講義是交付；未呈現學習成效或行為改變。" },
+      { text: "工作坊後 70% 參與者能在 10 分鐘內完成『可驗證引用』練習", answer: "outcomes",
+        why: "描述能力達成率，是學習成效（outcome）。" },
+      { text: "把 16 週課程網站架好並建立 12 個單元頁", answer: "outputs",
+        why: "網站與頁面數量屬交付物；未呈現學生學習或轉換結果。" },
+      { text: "課程網站上線後，學生作業準時繳交率從 62% 升到 85%", answer: "outcomes",
+        why: "準時繳交率提升是行為/成效變化，屬 outcome。" },
+      { text: "把 CRM 自動化流程串接完成（3 條旅程、9 個觸發）", answer: "outputs",
+        why: "流程串接與觸發數量是交付規格；尚未說明留存/回購。" },
+      { text: "自動化導入後，30 天留存率提升 6%，客服工單下降 12%", answer: "outcomes",
+        why: "留存率與工單下降是可衡量效益，屬 outcomes。" },
+    ];
+
+    /***********************
+     * 2) 遊戲參數（可調）
+     ***********************/
+    const CONFIG = {
+      startTimeSec: 45,         // 初始秒數
+      correctScore: 10,         // 答對分數
+      comboBonus: 2,            // 每 1 Combo 額外加分（線性）
+      wrongPenaltySec: 3.0,     // 答錯扣秒
+      swipeThresholdPx: 110,    // 判定滑出的距離
+      maxRotationDeg: 12,       // 卡片旋轉幅度
+      endTimeEpsilon: 0.02      // 浮點誤差
+    };
+
+    /***********************
+     * 3) 狀態
+     ***********************/
+    let deck = [];
+    let idx = 0;
+
+    let timeLeft = CONFIG.startTimeSec;
+    let score = 0;
+    let combo = 0;
+    let correct = 0;
+    let wrong = 0;
+    let paused = true;
+    let ended = false;
+    let rafId = null;
+    let lastTs = null;
+
+    const LS_KEY_BEST = "ovso_bestScore_v1";
+    const bestEl = document.getElementById("best");
+    const timeEl = document.getElementById("timeLeft");
+    const scoreEl = document.getElementById("score");
+    const comboEl = document.getElementById("combo");
+    const explainEl = document.getElementById("explain");
+    const toastEl = document.getElementById("toast");
+    const deckEl = document.getElementById("deck");
+    const endScreenEl = document.getElementById("endScreen");
+
+    const endScoreEl = document.getElementById("endScore");
+    const endBestEl = document.getElementById("endBest");
+    const endCorrectEl = document.getElementById("endCorrect");
+    const endWrongEl = document.getElementById("endWrong");
+
+    const settingsInfoEl = document.getElementById("settingsInfo");
+
+    function getBest() {
+      const v = Number(localStorage.getItem(LS_KEY_BEST) || "0");
+      return Number.isFinite(v) ? v : 0;
+    }
+    function setBest(v) {
+      localStorage.setItem(LS_KEY_BEST, String(v));
+    }
+
+    function fmtTime(t) {
+      return Math.max(0, t).toFixed(1);
+    }
+
+    function showToast(msg, ms = 900) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      setTimeout(() => toastEl.classList.remove("show"), ms);
+    }
+
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function resetState({ keepBest = true } = {}) {
+      idx = 0;
+      timeLeft = CONFIG.startTimeSec;
+      score = 0;
+      combo = 0;
+      correct = 0;
+      wrong = 0;
+      paused = true;
+      ended = false;
+      lastTs = null;
+      explainEl.textContent = "—";
+      endScreenEl.classList.remove("show");
+      updateHud();
+      if (!keepBest) setBest(0);
+    }
+
+    function updateHud() {
+      timeEl.textContent = fmtTime(timeLeft);
+      scoreEl.textContent = String(score);
+      comboEl.textContent = String(combo);
+      bestEl.textContent = String(getBest());
+      settingsInfoEl.textContent =
+        `倒數 ${CONFIG.startTimeSec}s｜答錯扣 ${CONFIG.wrongPenaltySec.toFixed(1)}s｜連對 Combo 加分：每 1 Combo +${CONFIG.comboBonus}`;
+    }
+
+    /***********************
+     * 4) 渲染卡片
+     ***********************/
+    function buildCard(card, zIndex) {
+      const el = document.createElement("div");
+      el.className = "card";
+      el.style.zIndex = String(zIndex);
+
+      const tagRow = document.createElement("div");
+      tagRow.className = "tagrow";
+
+      const tag = document.createElement("span");
+      tag.className = "tag neutral";
+      tag.textContent = "判斷：Outputs 還是 Outcomes？";
+
+      tagRow.appendChild(tag);
+
+      const h2 = document.createElement("h2");
+      h2.textContent = "專案成果卡片";
+
+      const desc = document.createElement("div");
+      desc.className = "desc";
+      desc.textContent = `「${card.text}」`;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = "向左＝Outputs　向右＝Outcomes";
+
+      const overlayL = document.createElement("div");
+      overlayL.className = "overlay left";
+      overlayL.textContent = "OUTPUTS";
+
+      const overlayR = document.createElement("div");
+      overlayR.className = "overlay right";
+      overlayR.textContent = "OUTCOMES";
+
+      el.appendChild(tagRow);
+      el.appendChild(h2);
+      el.appendChild(desc);
+      el.appendChild(meta);
+      el.appendChild(overlayL);
+      el.appendChild(overlayR);
+
+      attachDrag(el, card, overlayL, overlayR);
+
+      return el;
+    }
+
+    function renderTopCards() {
+      deckEl.innerHTML = "";
+      const remaining = deck.length - idx;
+      const showN = Math.min(3, remaining);
+
+      for (let i = showN - 1; i >= 0; i--) {
+        const card = deck[idx + i];
+        const z = 10 + i;
+        const el = buildCard(card, z);
+
+        // 後面兩張做一點縮放/位移，增加「牌堆」感
+        const offset = i * 6;
+        const scale = 1 - i * 0.03;
+        el.style.transform = `translate(${offset}px, ${offset}px) scale(${scale})`;
+        deckEl.appendChild(el);
+      }
+    }
+
+    /***********************
+     * 5) 互動：拖曳 / 滑卡 / 鍵盤
+     ***********************/
+    function attachDrag(cardEl, card, overlayL, overlayR) {
+      let startX = 0, startY = 0;
+      let dx = 0, dy = 0;
+      let dragging = false;
+
+      const onDown = (e) => {
+        if (paused || ended) return;
+        dragging = true;
+        cardEl.setPointerCapture(e.pointerId);
+        startX = e.clientX;
+        startY = e.clientY;
+        dx = 0; dy = 0;
+        cardEl.style.transition = "none";
+      };
+
+      const onMove = (e) => {
+        if (!dragging) return;
+        dx = e.clientX - startX;
+        dy = e.clientY - startY;
+
+        const rot = Math.max(-CONFIG.maxRotationDeg, Math.min(CONFIG.maxRotationDeg, dx / 18));
+        cardEl.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+
+        // 提示 overlay
+        overlayL.classList.toggle("show", dx < -30);
+        overlayR.classList.toggle("show", dx > 30);
+      };
+
+      const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        cardEl.style.transition = "";
+
+        overlayL.classList.remove("show");
+        overlayR.classList.remove("show");
+
+        if (Math.abs(dx) >= CONFIG.swipeThresholdPx) {
+          const choice = dx < 0 ? "outputs" : "outcomes";
+          swipeOut(cardEl, card, choice, dx, dy);
+        } else {
+          cardEl.style.transform = "translate(0,0) rotate(0deg)";
+        }
+      };
+
+      cardEl.addEventListener("pointerdown", onDown);
+      cardEl.addEventListener("pointermove", onMove);
+      cardEl.addEventListener("pointerup", onUp);
+      cardEl.addEventListener("pointercancel", onUp);
+    }
+
+    function swipeOut(cardEl, card, choice, dx, dy) {
+      // 動畫飛出
+      const dir = dx < 0 ? -1 : 1;
+      const flyX = dir * 900;
+      const flyY = dy * 2;
+      const rot = dir * 18;
+      cardEl.style.transform = `translate(${flyX}px, ${flyY}px) rotate(${rot}deg)`;
+      cardEl.style.opacity = "0";
+
+      // 結算判斷
+      const ok = (choice === card.answer);
+      applyResult(ok, card, choice);
+
+      // 下一張
+      setTimeout(() => {
+        idx++;
+        if (idx >= deck.length) {
+          // 用完就重洗（不結束，讓學生撐更久）
+          deck = shuffle(deck);
+          idx = 0;
+          showToast("牌組用完，已自動洗牌繼續！", 1100);
+        }
+        renderTopCards();
+      }, 160);
+    }
+
+    function applyResult(ok, card, choice) {
+      if (ok) {
+        combo++;
+        correct++;
+        const gain = CONFIG.correctScore + (combo - 1) * CONFIG.comboBonus;
+        score += gain;
+        explainEl.textContent = `✅ 正確（${choice.toUpperCase()}）\n解析：${card.why}`;
+        showToast(`✅ +${gain} 分｜Combo x${combo}`, 800);
+      } else {
+        wrong++;
+        combo = 0;
+        timeLeft -= CONFIG.wrongPenaltySec;
+        explainEl.textContent =
+          `❌ 錯誤（你選 ${choice.toUpperCase()}）\n正解：${card.answer.toUpperCase()}\n解析：${card.why}\n（已扣 ${CONFIG.wrongPenaltySec.toFixed(1)} 秒）`;
+        showToast(`❌ 扣 ${CONFIG.wrongPenaltySec.toFixed(1)} 秒｜Combo 歸零`, 900);
+      }
+      updateHud();
+
+      // 若扣到時間歸零，立刻結束
+      if (timeLeft <= CONFIG.endTimeEpsilon) {
+        timeLeft = 0;
+        endGame();
+      }
+    }
+
+    function keySwipe(choice) {
+      if (paused || ended) return;
+      // 取最上層卡片：deckEl 的最後一個 child 是最上面（zIndex 最大）
+      const top = [...deckEl.children].sort((a,b)=>Number(a.style.zIndex)-Number(b.style.zIndex)).pop();
+      if (!top) return;
+      const card = deck[idx];
+      swipeOut(top, card, choice, choice === "outputs" ? -CONFIG.swipeThresholdPx : CONFIG.swipeThresholdPx, 0);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); keySwipe("outputs"); }
+      if (e.key === "ArrowRight") { e.preventDefault(); keySwipe("outcomes"); }
+      if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); togglePause(); }
+      if (e.key.toLowerCase() === "r") { e.preventDefault(); startGame(true); }
+    });
+
+    /***********************
+     * 6) 計時器（requestAnimationFrame）
+     ***********************/
+    function tick(ts) {
+      if (paused || ended) return;
+      if (lastTs == null) lastTs = ts;
+      const dt = (ts - lastTs) / 1000;
+      lastTs = ts;
+
+      timeLeft -= dt;
+      if (timeLeft <= CONFIG.endTimeEpsilon) {
+        timeLeft = 0;
+        updateHud();
+        endGame();
+        return;
+      }
+      updateHud();
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function startTimer() {
+      if (rafId) cancelAnimationFrame(rafId);
+      lastTs = null;
+      rafId = requestAnimationFrame(tick);
+    }
+
+    /***********************
+     * 7) 開始 / 暫停 / 結束
+     ***********************/
+    function startGame(restart = false) {
+      if (restart) resetState();
+      paused = false;
+      ended = false;
+      endScreenEl.classList.remove("show");
+      showToast("開始！左 Outputs、右 Outcomes", 900);
+      updateHud();
+      renderTopCards();
+      startTimer();
+    }
+
+    function togglePause() {
+      if (ended) return;
+      paused = !paused;
+      if (!paused) {
+        showToast("繼續！", 500);
+        startTimer();
+      } else {
+        showToast("已暫停（按空白鍵繼續）", 800);
+      }
+    }
+
+    function endGame() {
+      ended = true;
+      paused = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      const best = getBest();
+      if (score > best) setBest(score);
+
+      endScoreEl.textContent = String(score);
+      endBestEl.textContent = String(getBest());
+      endCorrectEl.textContent = String(correct);
+      endWrongEl.textContent = String(wrong);
+      endScreenEl.classList.add("show");
+      updateHud();
+    }
+
+    /***********************
+     * 8) 按鈕
+     ***********************/
+    document.getElementById("btnStart").addEventListener("click", () => startGame(true));
+    document.getElementById("btnPause").addEventListener("click", () => togglePause());
+    document.getElementById("btnShuffle").addEventListener("click", () => {
+      deck = shuffle(deck);
+      idx = 0;
+      renderTopCards();
+      showToast("已洗牌", 700);
+    });
+
+    document.getElementById("btnRestart").addEventListener("click", () => startGame(true));
+    document.getElementById("btnReview").addEventListener("click", () => {
+      showToast("提示：把『交付物』改寫成『指標改變』，就是 Outcomes。", 1400);
+    });
+
+    /***********************
+     * 9) 初始化
+     ***********************/
+    function init() {
+      deck = shuffle(CARDS);
+      resetState();
+      updateHud();
+      renderTopCards();
+      showToast("準備好就按「開始 / 重新開始」", 1200);
+    }
+    init();
+  </script>
+</body>
+</html>
