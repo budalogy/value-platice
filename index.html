@@ -8,7 +8,8 @@
     :root { --bg:#0b0f19; --card:#121a2a; --muted:#8aa0c6; --text:#eaf1ff; --ok:#37d67a; --bad:#ff4d4f; --warn:#ffcc00; }
     * { box-sizing: border-box; }
     body {
-      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
       background: radial-gradient(1200px 800px at 20% 0%, #182545 0%, var(--bg) 55%);
       color: var(--text);
       min-height: 100vh;
@@ -18,12 +19,17 @@
       padding: 18px;
     }
     .app { width: min(980px, 100%); }
+
     .topbar {
-      display: grid; grid-template-columns: 1fr auto; gap: 12px;
-      align-items: center; margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
     }
     .title h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
     .title p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+
     .hud {
       display: flex; gap: 10px; flex-wrap: wrap;
       justify-content: flex-end;
@@ -37,6 +43,7 @@
     }
     .pill .k { color: var(--muted); font-size: 12px; }
     .pill .v { font-size: 18px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
     .layout {
       display: grid;
       grid-template-columns: 1.2fr .8fr;
@@ -63,6 +70,7 @@
       user-select: none;
     }
     .labels b { color: var(--text); }
+
     .hint {
       position: absolute; inset: auto 14px 14px 14px;
       display: flex; justify-content: space-between; gap: 10px;
@@ -70,6 +78,7 @@
       user-select: none;
     }
     .hint .key { color: var(--text); }
+
     .deck {
       position: relative;
       height: 420px;
@@ -77,11 +86,13 @@
       place-items: center;
       margin-top: 4px;
     }
+
+    /* ✅ 關鍵修正：卡片底色改成不透明，避免後面卡片文字透出造成疊字 */
     .card {
       width: min(520px, 92%);
       height: 360px;
       border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      background: linear-gradient(180deg, #1b2542, #0f172a); /* 不透明底色 */
       border: 1px solid rgba(255,255,255,.10);
       box-shadow: 0 18px 50px rgba(0,0,0,.35);
       padding: 18px 18px 16px;
@@ -89,7 +100,9 @@
       touch-action: none;
       transform: translate(0,0) rotate(0deg);
       transition: transform .18s ease, opacity .18s ease;
+      overflow: hidden;
     }
+
     .card .tagrow { display:flex; gap: 8px; align-items: center; }
     .tag {
       font-size: 12px; padding: 6px 10px; border-radius: 999px;
@@ -100,12 +113,14 @@
     .tag.outputs { border-color: rgba(255,77,79,.35); color: rgba(255,200,200,.92); }
     .tag.outcomes { border-color: rgba(55,214,122,.35); color: rgba(200,255,230,.92); }
     .tag.neutral { border-color: rgba(255,204,0,.35); color: rgba(255,235,180,.95); }
+
     .card h2 { margin: 12px 0 8px; font-size: 18px; line-height: 1.35; }
     .card .desc { color: rgba(234,241,255,.92); font-size: 16px; line-height: 1.5; white-space: pre-wrap; }
     .card .meta {
       margin-top: 12px; color: var(--muted);
       font-size: 13px; line-height: 1.45;
     }
+
     .overlay {
       position: absolute;
       top: 18px; left: 18px;
@@ -142,6 +157,7 @@
     .panel h3 { margin: 0 0 8px; font-size: 14px; color: rgba(234,241,255,.95); }
     .panel p, .panel li { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .panel ul { margin: 8px 0 0; padding-left: 18px; }
+
     .btnrow { display:flex; gap: 10px; flex-wrap: wrap; }
     button {
       appearance: none;
@@ -158,6 +174,7 @@
     button:active { transform: translateY(1px); }
     button.primary { border-color: rgba(55,214,122,.35); background: rgba(55,214,122,.10); }
     button.danger { border-color: rgba(255,77,79,.35); background: rgba(255,77,79,.10); }
+
     .toast {
       position: fixed;
       left: 50%;
@@ -176,6 +193,7 @@
       line-height: 1.45;
     }
     .toast.show { opacity: 1; }
+
     .end {
       position: absolute; inset: 0;
       display:none;
@@ -243,9 +261,7 @@
           <div><b>Outcomes</b>（價值/效益） ➡️</div>
         </div>
 
-        <div class="deck" id="deck" aria-live="polite">
-          <!-- cards injected -->
-        </div>
+        <div class="deck" id="deck" aria-live="polite"></div>
 
         <div class="hint">
           <div>鍵盤：<span class="kbd">←</span> Outputs　<span class="kbd">→</span> Outcomes</div>
@@ -267,7 +283,7 @@
             </p>
             <div class="btnrow" style="margin-top:12px;">
               <button class="primary" id="btnRestart">再來一局</button>
-              <button id="btnReview">看卡片解析</button>
+              <button id="btnReview">看提示</button>
             </div>
           </div>
         </div>
@@ -277,8 +293,8 @@
         <div class="panel">
           <h3>本週概念速記</h3>
           <p>
-            這週重點是「價值交付」：<b>做完（Outputs）</b>不等於<b>做好（Outcomes / Business Value）</b>。
-            （你投影片也用「取得真經的意義」把這個差異講得很清楚。）:contentReference[oaicite:1]{index=1}
+            核心：<b>做完（Outputs）不等於做好（Outcomes / Business Value）</b>。
+            Outputs 是交付物；Outcomes 是效益與價值成果。
           </p>
           <ul>
             <li><b>Outputs</b>：交付物/規格/數量/如期如質如預算。</li>
@@ -287,7 +303,7 @@
         </div>
 
         <div class="panel">
-          <h3>遊戲設定</h3>
+          <h3>遊戲控制</h3>
           <div class="btnrow">
             <button id="btnStart" class="primary">開始 / 重新開始</button>
             <button id="btnPause">暫停</button>
@@ -316,10 +332,9 @@
 
   <script>
     /***********************
-     * 1) 牌組：請在這裡擴充
+     * 1) 牌組：可自由增刪
      ***********************/
     const CARDS = [
-      // 你提供的例子
       { text: "建立了一個有 50 個頁面的 WordPress 網站", answer: "outputs",
         why: "這是交付物與規格（做了什麼、做了多少）。沒有描述帶來的效益或指標改變。" },
       { text: "透過網站改版，讓線上課程的轉換率提升了 15%", answer: "outcomes",
@@ -329,7 +344,6 @@
       { text: "為組織交付了實質的商業價值（Business Value）", answer: "outcomes",
         why: "直接指向價值與利益實現（benefits realization），屬 Outcomes。" },
 
-      // 下面是我補的教學卡（可自由增刪）
       { text: "完成募款頁面 A/B 測試版本各 1 版並上線", answer: "outputs",
         why: "完成與上線是交付狀態；尚未說明募款轉換或捐款金額的變化。" },
       { text: "讓募款頁面的平均捐款金額提高 80 元", answer: "outcomes",
@@ -356,13 +370,13 @@
      * 2) 遊戲參數（可調）
      ***********************/
     const CONFIG = {
-      startTimeSec: 45,         // 初始秒數
-      correctScore: 10,         // 答對分數
-      comboBonus: 2,            // 每 1 Combo 額外加分（線性）
-      wrongPenaltySec: 3.0,     // 答錯扣秒
-      swipeThresholdPx: 110,    // 判定滑出的距離
-      maxRotationDeg: 12,       // 卡片旋轉幅度
-      endTimeEpsilon: 0.02      // 浮點誤差
+      startTimeSec: 45,
+      correctScore: 10,
+      comboBonus: 2,
+      wrongPenaltySec: 3.0,
+      swipeThresholdPx: 110,
+      maxRotationDeg: 12,
+      endTimeEpsilon: 0.02
     };
 
     /***********************
@@ -406,9 +420,7 @@
       localStorage.setItem(LS_KEY_BEST, String(v));
     }
 
-    function fmtTime(t) {
-      return Math.max(0, t).toFixed(1);
-    }
+    function fmtTime(t) { return Math.max(0, t).toFixed(1); }
 
     function showToast(msg, ms = 900) {
       toastEl.textContent = msg;
@@ -447,16 +459,19 @@
       comboEl.textContent = String(combo);
       bestEl.textContent = String(getBest());
       settingsInfoEl.textContent =
-        `倒數 ${CONFIG.startTimeSec}s｜答錯扣 ${CONFIG.wrongPenaltySec.toFixed(1)}s｜連對 Combo 加分：每 1 Combo +${CONFIG.comboBonus}`;
+        `倒數 ${CONFIG.startTimeSec}s｜答錯扣 ${CONFIG.wrongPenaltySec.toFixed(1)}s｜連對 Combo：每 1 Combo +${CONFIG.comboBonus} 分`;
     }
 
     /***********************
      * 4) 渲染卡片
+     * ✅ 關鍵修正：只有最上層卡片渲染文字；底下兩張只顯示空白卡，避免疊字
      ***********************/
-    function buildCard(card, zIndex) {
+    function buildCard(card, zIndex, showContent = true) {
       const el = document.createElement("div");
       el.className = "card";
       el.style.zIndex = String(zIndex);
+
+      if (!showContent) return el; // 底卡不渲染內容（避免重影疊字）
 
       const tagRow = document.createElement("div");
       tagRow.className = "tagrow";
@@ -464,7 +479,6 @@
       const tag = document.createElement("span");
       tag.className = "tag neutral";
       tag.textContent = "判斷：Outputs 還是 Outcomes？";
-
       tagRow.appendChild(tag);
 
       const h2 = document.createElement("h2");
@@ -494,7 +508,6 @@
       el.appendChild(overlayR);
 
       attachDrag(el, card, overlayL, overlayR);
-
       return el;
     }
 
@@ -503,15 +516,18 @@
       const remaining = deck.length - idx;
       const showN = Math.min(3, remaining);
 
+      // i=0 是最上層；i=1/2 是底卡
       for (let i = showN - 1; i >= 0; i--) {
         const card = deck[idx + i];
         const z = 10 + i;
-        const el = buildCard(card, z);
 
-        // 後面兩張做一點縮放/位移，增加「牌堆」感
+        const el = buildCard(card, z, i === 0); // ✅ 只有最上層顯示內容
         const offset = i * 6;
         const scale = 1 - i * 0.03;
+
         el.style.transform = `translate(${offset}px, ${offset}px) scale(${scale})`;
+        if (i > 0) el.style.filter = "brightness(0.86)"; // 底卡更像背景
+
         deckEl.appendChild(el);
       }
     }
@@ -542,7 +558,6 @@
         const rot = Math.max(-CONFIG.maxRotationDeg, Math.min(CONFIG.maxRotationDeg, dx / 18));
         cardEl.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
 
-        // 提示 overlay
         overlayL.classList.toggle("show", dx < -30);
         overlayR.classList.toggle("show", dx > 30);
       };
@@ -570,7 +585,6 @@
     }
 
     function swipeOut(cardEl, card, choice, dx, dy) {
-      // 動畫飛出
       const dir = dx < 0 ? -1 : 1;
       const flyX = dir * 900;
       const flyY = dy * 2;
@@ -578,15 +592,12 @@
       cardEl.style.transform = `translate(${flyX}px, ${flyY}px) rotate(${rot}deg)`;
       cardEl.style.opacity = "0";
 
-      // 結算判斷
       const ok = (choice === card.answer);
       applyResult(ok, card, choice);
 
-      // 下一張
       setTimeout(() => {
         idx++;
         if (idx >= deck.length) {
-          // 用完就重洗（不結束，讓學生撐更久）
           deck = shuffle(deck);
           idx = 0;
           showToast("牌組用完，已自動洗牌繼續！", 1100);
@@ -613,7 +624,6 @@
       }
       updateHud();
 
-      // 若扣到時間歸零，立刻結束
       if (timeLeft <= CONFIG.endTimeEpsilon) {
         timeLeft = 0;
         endGame();
@@ -622,11 +632,15 @@
 
     function keySwipe(choice) {
       if (paused || ended) return;
-      // 取最上層卡片：deckEl 的最後一個 child 是最上面（zIndex 最大）
+
+      // 最上層卡片：zIndex 最大
       const top = [...deckEl.children].sort((a,b)=>Number(a.style.zIndex)-Number(b.style.zIndex)).pop();
       if (!top) return;
+
       const card = deck[idx];
-      swipeOut(top, card, choice, choice === "outputs" ? -CONFIG.swipeThresholdPx : CONFIG.swipeThresholdPx, 0);
+      swipeOut(top, card, choice,
+        choice === "outputs" ? -CONFIG.swipeThresholdPx : CONFIG.swipeThresholdPx, 0
+      );
     }
 
     document.addEventListener("keydown", (e) => {
@@ -637,7 +651,7 @@
     });
 
     /***********************
-     * 6) 計時器（requestAnimationFrame）
+     * 6) 計時器
      ***********************/
     function tick(ts) {
       if (paused || ended) return;
